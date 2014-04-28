@@ -19,6 +19,7 @@ package org.apache.mahout.cf.taste.hadoop.item;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.mahout.math.VarIntWritable;
@@ -27,15 +28,24 @@ import org.apache.mahout.math.VectorWritable;
 
 /**
  * maps a row of the similarity matrix to a {@link VectorOrPrefWritable}
- * 
- * actually a column from that matrix has to be used but as the similarity matrix is symmetric, 
+ *
+ * actually a column from that matrix has to be used but as the similarity matrix is symmetric,
  * we can use a row instead of having to transpose it
  */
 public final class SimilarityMatrixRowWrapperMapper extends
     Mapper<IntWritable,VectorWritable,VarIntWritable,VectorOrPrefWritable> {
 
+  static final String INCLUDE_RATED_ITEM = "includeRatedItem";
   private final VarIntWritable index = new VarIntWritable();
   private final VectorOrPrefWritable vectorOrPref = new VectorOrPrefWritable();
+
+  private boolean includeRatedItem;
+
+  @Override
+  protected void setup(Context context) throws IOException {
+    Configuration jobConf = context.getConfiguration();
+    includeRatedItem = jobConf.getBoolean(INCLUDE_RATED_ITEM, false);
+  }
 
   @Override
   protected void map(IntWritable key,
@@ -43,7 +53,11 @@ public final class SimilarityMatrixRowWrapperMapper extends
                      Context context) throws IOException, InterruptedException {
     Vector similarityMatrixRow = value.get();
     /* remove self similarity */
-    similarityMatrixRow.set(key.get(), Double.NaN);
+    if (includeRatedItem) {
+      similarityMatrixRow.set(key.get(), 0.0);
+    } else {
+      similarityMatrixRow.set(key.get(), Double.NaN);
+    }
 
     index.set(key.get());
     vectorOrPref.set(similarityMatrixRow);

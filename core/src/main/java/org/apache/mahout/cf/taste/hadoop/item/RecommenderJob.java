@@ -121,12 +121,13 @@ public final class RecommenderJob extends AbstractJob {
     addOption("maxPrefsInItemSimilarity", "mpiis", "max number of preferences to consider per user or item in the "
             + "item similarity computation phase, users or items with more preferences will be sampled down (default: "
         + DEFAULT_MAX_PREFS + ')', String.valueOf(DEFAULT_MAX_PREFS));
-    addOption("similarityClassname", "s", "Name of distributed similarity measures class to instantiate, " 
+    addOption("similarityClassname", "s", "Name of distributed similarity measures class to instantiate, "
             + "alternatively use one of the predefined similarities (" + VectorSimilarityMeasures.list() + ')', true);
     addOption("threshold", "tr", "discard item pairs with a similarity value below this", false);
     addOption("outputPathForSimilarityMatrix", "opfsm", "write the item similarity matrix to this path (optional)",
         false);
     addOption("randomSeed", null, "use this seed for sampling", false);
+    addOption("includeRatedItem", null, "include rated item in recommendation", false);
     addFlag("sequencefileOutput", null, "write the output into a SequenceFile instead of a text file");
 
     Map<String, List<String>> parsedArgs = parseArguments(args);
@@ -149,7 +150,7 @@ public final class RecommenderJob extends AbstractJob {
         ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
     long randomSeed = hasOption("randomSeed")
         ? Long.parseLong(getOption("randomSeed")) : RowSimilarityJob.NO_FIXED_RANDOM_SEED;
-
+    boolean includeRatedItem = Boolean.valueOf(getOption("includeRatedItem"));
 
     Path prepPath = getTempPath(DEFAULT_PREPARE_PATH);
     Path similarityMatrixPath = getTempPath("similarityMatrix");
@@ -236,6 +237,8 @@ public final class RecommenderJob extends AbstractJob {
         partialMultiplyConf.set(UserVectorSplitterMapper.USERS_FILE, usersFile);
       }
       partialMultiplyConf.setInt(UserVectorSplitterMapper.MAX_PREFS_PER_USER_CONSIDERED, maxPrefsPerUser);
+      partialMultiplyConf.setBoolean(
+        SimilarityMatrixRowWrapperMapper.INCLUDE_RATED_ITEM, includeRatedItem);
 
       boolean succeeded = partialMultiply.waitForCompletion(true);
       if (!succeeded) {
